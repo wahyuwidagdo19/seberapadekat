@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Seberapa Dekat Kamu dengan Wahyu</title>
+
+<style>
+body{
+  margin:0;height:100vh;
+  background:linear-gradient(135deg,#0b0b0b,#1e1e1e);
+  color:white;font-family:Arial;
+  display:flex;justify-content:center;align-items:center;
+}
+.card{
+  background:rgba(255,255,255,.06);
+  padding:35px;border-radius:18px;
+  width:360px;text-align:center;
+  box-shadow:0 0 40px rgba(0,0,0,.8);
+}
+h1{color:#00ffcc}
+button,input{
+  width:100%;padding:12px;border-radius:25px;
+  border:none;margin:8px 0;font-weight:bold;
+}
+button{background:#00ffcc;cursor:pointer}
+button:disabled{opacity:.6}
+.correct{background:#2ecc71!important;color:black}
+.wrong{background:#ff4d4d!important;color:white}
+.leaderboard{text-align:left;margin-top:15px}
+.leaderboard li{margin:6px 0}
+.timer{color:#ffcc00;font-weight:bold}
+</style>
+</head>
+
+<body>
+<div class="card" id="app">
+  <h1>Seberapa Dekat<br>dengan Wahyu?</h1>
+  <input id="nameInput" placeholder="Nama lu...">
+  <button onclick="start()">START</button>
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+/* ================= FIREBASE ================= */
+firebase.initializeApp({
+  apiKey: "AIzaSyBFhb3EVXEsWaqi83nBmSgl8bbQ5bRgLUg",
+  authDomain: "leader-112c2.firebaseapp.com",
+  databaseURL: "https://leader-112c2-default-rtdb.firebaseio.com",
+  projectId: "leader-112c2",
+  storageBucket: "leader-112c2.firebasestorage.app",
+  messagingSenderId: "1022417648834",
+  appId: "1:1022417648834:web:b6481641045855fe314f5b"
+});
+const db = firebase.database();
+
+/* ================= DATA ================= */
+let score=0,index=0,player="",time=0,timer;
+const questions=[
+ {q:"Buah favorit Wahyu?",o:["🍎 Apel","🍊 Jeruk","🍌 Pisang"],c:"🍊 Jeruk"},
+ {q:"Lagu favorit Wahyu?",o:["🎸 Don't Look Back in Anger","🎧 Yellow","🎶 Fix You"],c:"🎸 Don't Look Back in Anger"},
+ {q:"Hobi utama Wahyu?",o:["📖 Membaca","🎮 Bermain Game","😴 Tidur"],c:"🎮 Bermain Game"},
+ {q:"Game favorit Wahyu?",o:["⚽ FIFA","🔥 Mobile Legends","🧱 Minecraft"],c:"🔥 Mobile Legends"},
+ {q:"Rank tertinggi Wahyu?",o:["Mythic","👑 Immortal","Legend"],c:"👑 Immortal"}
+];
+
+/* ================= SOUND ================= */
+const beep=(f,d=0.15)=>{
+ const a=new AudioContext();
+ const o=a.createOscillator();
+ o.frequency.value=f;o.connect(a.destination);
+ o.start();o.stop(a.currentTime+d);
+}
+
+/* ================= CONFETTI ================= */
+function confetti(){
+ for(let i=0;i<80;i++){
+  const c=document.createElement("div");
+  c.style=`position:fixed;left:${Math.random()*100}%;
+  top:-10px;width:6px;height:6px;
+  background:hsl(${Math.random()*360},100%,50%);
+  animation:fall 2s linear`;
+  document.body.appendChild(c);
+  setTimeout(()=>c.remove(),2000);
+ }
+}
+document.head.insertAdjacentHTML("beforeend",
+`<style>@keyframes fall{to{transform:translateY(110vh)}}</style>`);
+
+/* ================= START ================= */
+function start(){
+ player=nameInput.value.trim();
+ if(!player) return alert("Nama dulu 😅");
+ score=0;index=0;time=0;
+ timer=setInterval(()=>time++,1000);
+ showQ();
+}
+
+function showQ(){
+ const q=questions[index];
+ app.innerHTML=`<div class="timer">⏱ ${time}s</div><h1>${q.q}</h1>`;
+ shuffle([...q.o]).forEach(ans=>{
+  const b=document.createElement("button");
+  b.textContent=ans;
+  b.onclick=()=>check(b,ans);
+  app.appendChild(b);
+ });
+}
+
+function check(btn,ans){
+ document.querySelectorAll("button").forEach(b=>b.disabled=true);
+ if(ans===questions[index].c){score++;btn.classList.add("correct");beep(800)}
+ else{btn.classList.add("wrong");beep(200)}
+ setTimeout(()=>index<questions.length-1?(index++,showQ()):result(),500);
+}
+
+/* ================= RESULT ================= */
+function result(){
+ clearInterval(timer);
+ const p=Math.round(score/questions.length*100);
+ if(p===100) confetti();
+
+ db.ref("leaderboard").push({name:player,percent:p,time});
+ db.ref("leaderboard").orderByChild("percent").limitToLast(5)
+ .once("value",s=>{
+  const d=[];s.forEach(x=>d.unshift(x.val()));
+  app.innerHTML=`
+   <h1>${p}%</h1>
+   <p>${player} — ⏱ ${time}s</p>
+   <div class="leaderboard">
+    <h3>🏆 Leaderboard</h3>
+    <ol>${d.map((x,i)=>`<li>#${i+1} ${x.name} — ${x.percent}%</li>`).join("")}</ol>
+   </div>
+   <button onclick="location.reload()">Main Lagi</button>`;
+ });
+}
+
+function shuffle(a){return a.sort(()=>Math.random()-.5);}
+</script>
+</body>
+</html>
